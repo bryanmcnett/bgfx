@@ -8,6 +8,9 @@
 #include "bgfx_utils.h"
 #include "logo.h"
 #include "imgui/imgui.h"
+#include <vector>
+#include "entry/input.h"
+#include "entry/dialog.h"
 
 namespace
 {
@@ -51,7 +54,15 @@ public:
 			);
 
 		imguiCreate();
+
+		m_brush = CharacterCell{ 'a', 0xF, 0x0 };
+		m_binding[0].set(entry::Key::LeftBracket, entry::Modifier::None, 1, LeftBracket, this);
+		m_binding[1].set(entry::Key::RightBracket, entry::Modifier::None, 1, RightBracket, this);
+		m_binding[2].end();
+		inputAddBindings("Application", m_binding);
 	}
+
+	InputBinding m_binding[3];
 
 	virtual int shutdown() override
 	{
@@ -61,6 +72,77 @@ public:
 		bgfx::shutdown();
 
 		return 0;
+	}
+
+	struct CharacterCell
+	{
+		uint8_t m_character;
+		uint8_t m_foreground:4;
+		uint8_t m_background:4;
+	};
+	struct Map
+	{
+		int m_width;
+		int m_height;
+		std::vector<CharacterCell> m_vector;
+		Map()
+		: m_width(0)
+		, m_height(0)
+		{
+		}
+		void resize(int width, int height)
+		{
+			std::vector<CharacterCell> temp = m_vector;
+			m_vector.resize(width * height);
+			std::fill(m_vector.begin(), m_vector.end(), CharacterCell{ 0x00, 0x0, 0x0 });
+			for (int y = 0; y < std::min(height, m_height); ++y)
+				for (int x = 0; x < std::min(width, m_width); ++x)
+					m_vector[y * width + x] = temp[y * m_width + x];
+			m_width = width;
+			m_height = height;
+		}
+		CharacterCell& operator()(int x, int y)
+		{
+			assert(x >= 0 && x < m_width);
+			assert(y >= 0 && y < m_height);
+			return m_vector[y * m_width + x];
+		}
+		const CharacterCell& operator()(int x, int y) const
+		{
+			assert(x >= 0 && x < m_width);
+			assert(y >= 0 && y < m_height);
+			return m_vector[y * m_width + x];
+		}
+	};
+	Map m_map;
+	int m_x;
+	int m_y;
+	CharacterCell m_brush;
+
+	static void LeftBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->LeftBracket(); }
+	static void RightBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->RightBracket(); }
+	static void Comma(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Comma(); }
+	static void KeyO(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyO(); }
+
+	void LeftBracket() 
+	{
+		m_brush.m_foreground = m_brush.m_foreground + 1;
+	}
+
+	void RightBracket()
+	{
+		m_brush.m_foreground = m_brush.m_foreground - 1;
+	}
+
+	void Comma()
+	{
+		m_brush = m_map(m_x, m_y);
+	}
+
+	void KeyO()
+	{
+		bx::FilePath filePath = {};
+		openFileSelectionDialog(filePath, FileSelectionDialogType::Open, "open file");
 	}
 
 	bool update() override
@@ -88,28 +170,22 @@ public:
 			// if no other draw calls are submitted to view 0.
 			bgfx::touch(0);
 
+			const bgfx::Stats* stats = bgfx::getStats();
+			m_map.resize(stats->textWidth, stats->textHeight);
+
+			uint8_t modifiers;
 			// Use debug font to print information about this example.
 			bgfx::dbgTextClear();
-			bgfx::dbgTextImage(
-				  bx::max<uint16_t>(uint16_t(m_width /2/8 ), 20)-20
-				, bx::max<uint16_t>(uint16_t(m_height/2/16),  6)-6
-				, 40
-				, 12
-				, s_logo
-				, 160
-				);
-			bgfx::dbgTextPrintf(0, 1, 0x0f, "Color can be changed with ANSI \x1b[9;me\x1b[10;ms\x1b[11;mc\x1b[12;ma\x1b[13;mp\x1b[14;me\x1b[0m code too.");
 
-			bgfx::dbgTextPrintf(80, 1, 0x0f, "\x1b[;0m    \x1b[;1m    \x1b[; 2m    \x1b[; 3m    \x1b[; 4m    \x1b[; 5m    \x1b[; 6m    \x1b[; 7m    \x1b[0m");
-			bgfx::dbgTextPrintf(80, 2, 0x0f, "\x1b[;8m    \x1b[;9m    \x1b[;10m    \x1b[;11m    \x1b[;12m    \x1b[;13m    \x1b[;14m    \x1b[;15m    \x1b[0m");
-
-			const bgfx::Stats* stats = bgfx::getStats();
-			bgfx::dbgTextPrintf(0, 2, 0x0f, "Backbuffer %dW x %dH in pixels, debug text %dW x %dH in characters."
-				, stats->width
-				, stats->height
-				, stats->textWidth
-				, stats->textHeight
-				);
+			const int characterWideInPixels = stats->width / stats->textWidth;
+			const int characterTallInPixels = stats->height / stats->textHeight;
+			m_x = (m_mouseState.m_mx + (characterWideInPixels / 2)) / characterWideInPixels;
+			m_y = (m_mouseState.m_my + (characterTallInPixels / 2)) / characterTallInPixels;
+			if (m_mouseState.m_buttons[entry::MouseButton::Left])
+			{
+				m_map(m_x, m_y) = m_brush;
+			}
+			bgfx::dbgTextImage(0, 0, stats->textWidth, stats->textHeight, &m_map.m_vector[0], stats->textWidth * sizeof(CharacterCell));
 
 			// Advance to next frame. Rendering thread will be kicked to
 			// process submitted rendering primitives.
