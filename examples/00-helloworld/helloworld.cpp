@@ -137,6 +137,7 @@ public:
 		}
 	};
 	Map m_map;
+	Map m_screen;
 	int m_x;
 	int m_y;
 	CharacterCell m_brush;
@@ -256,6 +257,40 @@ public:
 		}
 	}
 
+	static void blit(Map& dest, Map& src, int dx, int dy)
+	{
+		int sx = 0;
+		int sy = 0;
+		if (dx < 0)
+		{
+			sx += -dx;
+			dx = 0;
+		}
+		if (dy < 0)
+		{
+			sy += -dy;
+			dy = 0;
+		}
+		int w = std::max(0, std::min(src.m_width - sx, dest.m_width - dx));
+		int h = std::max(0, std::min(src.m_height - sy, dest.m_height - dy));
+		for (int y = 0; y < h; ++y)
+			for (int x = 0; x < w; ++x)
+				dest(dx + x, dy + y) = src(sx + x, sy + y);
+	}
+
+	static void blit(Map& dest, CharacterCell& src, int dx, int dy)
+	{
+		if (dx < 0)
+			return;
+		if (dy < 0)
+			return;
+		if (dx >= dest.m_width)
+			return;
+		if (dy >= dest.m_height)
+			return;
+		dest(dx, dy) = src;
+	}
+
 	bool update() override
 	{
 		if (!entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState) )
@@ -282,6 +317,7 @@ public:
 			bgfx::touch(0);
 
 			const bgfx::Stats* stats = bgfx::getStats();
+			m_screen.resize(stats->textWidth, stats->textHeight);
 			m_map.resize(stats->textWidth, stats->textHeight);
 
 //			uint8_t modifiers;
@@ -292,11 +328,14 @@ public:
 			const int characterTallInPixels = stats->height / stats->textHeight;
 			m_x = (m_mouseState.m_mx + (characterWideInPixels / 2)) / characterWideInPixels;
 			m_y = (m_mouseState.m_my + (characterTallInPixels / 2)) / characterTallInPixels;
+
+			blit(m_screen, m_map, 0, 0);
+			blit(m_screen, m_brush, m_x, m_y);
 			if (m_mouseState.m_buttons[entry::MouseButton::Left])
 			{
-				m_map(m_x, m_y) = m_brush;
+				blit(m_map, m_brush, m_x, m_y);
 			}
-			bgfx::dbgTextImage(0, 0, stats->textWidth, stats->textHeight, &m_map.m_vector[0], stats->textWidth * sizeof(CharacterCell));
+			bgfx::dbgTextImage(0, 0, stats->textWidth, stats->textHeight, &m_screen.m_vector[0], stats->textWidth * sizeof(CharacterCell));
 
 			// Advance to next frame. Rendering thread will be kicked to
 			// process submitted rendering primitives.
