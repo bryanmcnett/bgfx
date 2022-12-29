@@ -23,7 +23,7 @@ public:
 	ExampleHelloWorld(const char* _name, const char* _description, const char* _url)
 		: entry::AppI(_name, _description, _url)
 		, m_binding()
-		, m_brush{}
+		, m_pencil{}
 		, m_debug{}
 		, m_height{}
 		, m_mode{}
@@ -65,7 +65,7 @@ public:
 
 		imguiCreate();
 
-		m_brush = CharacterCell{ 'a', 0xF, 0x0 };
+		m_pencil = CharacterCell{ 'a', 0xF, 0x0 };
 		m_binding[0].set(entry::Key::LeftBracket, entry::Modifier::None, 1, LeftBracket, this);
 		m_binding[1].set(entry::Key::RightBracket, entry::Modifier::None, 1, RightBracket, this);
 		m_binding[2].set(entry::Key::LeftBracket, entry::Modifier::LeftShift, 1, ShiftLeftBracket, this);
@@ -77,14 +77,16 @@ public:
 		m_binding[8].set(entry::Key::KeyO, entry::Modifier::RightCtrl, 1, KeyCtrlO, this);
 		m_binding[9].set(entry::Key::KeyS, entry::Modifier::LeftCtrl, 1, KeyCtrlS, this);
 		m_binding[10].set(entry::Key::KeyS, entry::Modifier::RightCtrl, 1, KeyCtrlS, this);
-		m_binding[11].set(entry::Key::KeyF, entry::Modifier::None, 1, KeyF, this);
-		m_binding[12].set(entry::Key::KeyB, entry::Modifier::None, 1, KeyB, this);
-		m_binding[13].set(entry::Key::KeyA, entry::Modifier::None, 1, KeyA, this);
-		m_binding[14].end();
+		m_binding[11].set(entry::Key::KeyZ, entry::Modifier::None, 1, KeyZ, this);
+		m_binding[12].set(entry::Key::KeyX, entry::Modifier::None, 1, KeyX, this);
+		m_binding[13].set(entry::Key::KeyC, entry::Modifier::None, 1, KeyC, this);
+		m_binding[14].set(entry::Key::KeyB, entry::Modifier::None, 1, KeyB, this);
+		m_binding[15].set(entry::Key::KeyP, entry::Modifier::None, 1, KeyP, this);
+		m_binding[16].end();
 		inputAddBindings("Application", m_binding);
 	}
 
-	InputBinding m_binding[15];
+	InputBinding m_binding[17];
 
 	virtual int shutdown() override
 	{
@@ -136,11 +138,14 @@ public:
 			return m_vector[y * m_width + x];
 		}
 	};
-	Map m_map;
-	Map m_screen;
-	int m_x;
-	int m_y;
-	CharacterCell m_brush;
+	Map m_map = {};
+	Map m_screen = {};
+	int m_x = 0;
+	int m_y = 0;
+	int m_brushx = 0;
+	int m_brushy = 0;
+	CharacterCell m_pencil = {};
+	Map m_brush = {};
 
 	static void ShiftLeftBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftLeftBracket(); }
 	static void ShiftRightBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftRightBracket(); }
@@ -149,9 +154,18 @@ public:
 	static void Comma(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Comma(); }
 	static void KeyCtrlO(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyCtrlO(); }
 	static void KeyCtrlS(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyCtrlS(); }
-	static void KeyF(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyF(); }
+	static void KeyZ(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyZ(); }
+	static void KeyX(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyX(); }
+	static void KeyC(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyC(); }
 	static void KeyB(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyB(); }
-	static void KeyA(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyA(); }
+	static void KeyP(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyP(); }
+
+	enum Tool
+	{
+		kPaint,
+		kGrabBrush
+	};
+	Tool m_tool = kPaint;
 
 	enum Mode
 	{
@@ -159,30 +173,43 @@ public:
 		kBackground,
 		kAscii,
 	};
-	Mode m_mode;
+	Mode m_mode = kForeground;
 
-	void KeyF()
+	void KeyZ()
 	{
 		m_mode = kForeground;
 	}
 
-	void KeyB()
+	void KeyX()
 	{
 		m_mode = kBackground;
 	}
 
-	void KeyA()
+	void KeyC()
 	{
 		m_mode = kAscii;
+	}
+
+	void KeyB()
+	{
+		m_tool = kGrabBrush;
+		m_oldX = m_x;
+		m_oldY = m_y;
+		m_grabbing = false;
+	}
+
+	void KeyP()
+	{
+		m_tool = kPaint;
 	}
 
 	void LeftBracket() 
 	{
 		switch(m_mode)
 		{
-		case kForeground: m_brush.m_foreground = m_brush.m_foreground - 1; break;
-		case kBackground: m_brush.m_background = m_brush.m_background - 1; break;
-		case kAscii:      m_brush.m_character = m_brush.m_character - 1; break;
+		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground - 1; break;
+		case kBackground: m_pencil.m_background = m_pencil.m_background - 1; break;
+		case kAscii:      m_pencil.m_character = m_pencil.m_character - 1; break;
 		default: break;
 		}
 	}
@@ -191,9 +218,9 @@ public:
 	{
 		switch (m_mode)
 		{
-		case kForeground: m_brush.m_foreground = m_brush.m_foreground - 4; break;
-		case kBackground: m_brush.m_background = m_brush.m_background - 4; break;
-		case kAscii:      m_brush.m_character = m_brush.m_character - 16; break;
+		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground - 4; break;
+		case kBackground: m_pencil.m_background = m_pencil.m_background - 4; break;
+		case kAscii:      m_pencil.m_character = m_pencil.m_character - 16; break;
 		default: break;
 		}
 	}
@@ -202,9 +229,9 @@ public:
 	{
 		switch (m_mode)
 		{
-		case kForeground: m_brush.m_foreground = m_brush.m_foreground + 1; break;
-		case kBackground: m_brush.m_background = m_brush.m_background + 1; break;
-		case kAscii:      m_brush.m_character = m_brush.m_character + 1; break;
+		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground + 1; break;
+		case kBackground: m_pencil.m_background = m_pencil.m_background + 1; break;
+		case kAscii:      m_pencil.m_character = m_pencil.m_character + 1; break;
 		default: break;
 		}
 	}
@@ -213,16 +240,17 @@ public:
 	{
 		switch (m_mode)
 		{
-		case kForeground: m_brush.m_foreground = m_brush.m_foreground + 4; break;
-		case kBackground: m_brush.m_background = m_brush.m_background + 4; break;
-		case kAscii:      m_brush.m_character = m_brush.m_character + 16; break;
+		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground + 4; break;
+		case kBackground: m_pencil.m_background = m_pencil.m_background + 4; break;
+		case kAscii:      m_pencil.m_character = m_pencil.m_character + 16; break;
 		default: break;
 		}
 	}
 
 	void Comma()
 	{
-		m_brush = m_map(m_x, m_y);
+		m_pencil = m_map(m_x, m_y);
+		grab(m_brush, m_map, m_x, m_y, 1, 1);
 	}
 
 	void KeyCtrlO()
@@ -254,6 +282,47 @@ public:
 			writer.write(&m_map.m_height, sizeof(m_map.m_height), &err);
 			writer.write(&m_map.m_vector[0], sizeof(CharacterCell) * m_map.m_width * m_map.m_height, &err);
 			bx::close(&writer);
+		}
+	}
+
+	static void xor(Map& dest, int x, int y)
+	{
+		CharacterCell cell = dest(x, y);
+		cell.m_background ^= 0xF;
+		cell.m_foreground ^= 0xF;
+		cell.m_character ^= 0xFF;
+		dest(x, y) = cell;
+	}
+
+	static void ants(Map& dest, int x1, int y1, int x2, int y2, int frame)
+	{
+		frame &= 7;
+		int f = 0;
+		int x = x1;
+		int y = y1;
+		for (; x < x2; ++x)
+		{
+			if ((f & 7) == frame)
+				dest(x, y) = CharacterCell{ 0,0xf,0xf };
+			++f;
+		}
+		for (; y < y2; ++y)
+		{
+			if ((f & 7) == frame)
+				dest(x, y) = CharacterCell{ 0,0xf,0xf};
+			++f;
+		}
+		for (; x > x1; --x)
+		{
+			if ((f & 7) == frame)
+				dest(x, y) = CharacterCell{ 0,0xf,0xf };
+			++f;
+		}
+		for (; y > y1; --y)
+		{
+			if ((f & 7) == frame)
+				dest(x, y) = CharacterCell{ 0,0xf,0xf };
+			++f;
 		}
 	}
 
@@ -290,6 +359,57 @@ public:
 			return;
 		dest(dx, dy) = src;
 	}
+
+	void UpdatePaint()
+	{
+		blit(m_screen, m_brush, m_x - m_brushx, m_y - m_brushy);
+		if (m_mouseState.m_buttons[entry::MouseButton::Left])
+		{
+			blit(m_map, m_brush, m_x - m_brushx, m_y - m_brushy);
+		}
+	}
+
+	static void grab(Map& dest, Map& src, int x, int y, int width, int height)
+	{
+		dest.resize(width, height);
+		for (int dy = 0; dy < height; ++dy)
+			for (int dx = 0; dx < width; ++dx)
+				dest(dx, dy) = src(x + dx, y + dy);
+	}
+
+	bool m_grabbing = false;
+	int m_oldX, m_oldY;
+	void UpdateGrabBrush()
+	{
+		const int x1 = std::min(m_x, m_oldX);
+		const int y1 = std::min(m_y, m_oldY);
+		const int x2 = std::max(m_x, m_oldX);
+		const int y2 = std::max(m_y, m_oldY);
+		const int width = x2 - x1 + 1;
+		const int height = y2 - y1 + 1;
+		if (m_grabbing)
+		{
+			if (!m_mouseState.m_buttons[entry::MouseButton::Left])
+			{
+				grab(m_brush, m_map, x1, y1, width, height);
+				m_brushx = width / 2;
+				m_brushy = height / 2;
+				m_grabbing = false;
+				m_tool = kPaint;
+			}
+		}
+		else
+		{
+			if (m_mouseState.m_buttons[entry::MouseButton::Left])
+			{
+				m_grabbing = true;
+			}
+			m_oldX = m_x;
+			m_oldY = m_y;
+		}
+		ants(m_screen, x1, y1, x2, y2, m_frame++);
+	}
+	int m_frame = 0;
 
 	bool update() override
 	{
@@ -330,10 +450,14 @@ public:
 			m_y = (m_mouseState.m_my + (characterTallInPixels / 2)) / characterTallInPixels;
 
 			blit(m_screen, m_map, 0, 0);
-			blit(m_screen, m_brush, m_x, m_y);
-			if (m_mouseState.m_buttons[entry::MouseButton::Left])
+			switch (m_tool)
 			{
-				blit(m_map, m_brush, m_x, m_y);
+			case kPaint:
+				UpdatePaint();
+				break;
+			case kGrabBrush:
+				UpdateGrabBrush();
+				break;
 			}
 			bgfx::dbgTextImage(0, 0, stats->textWidth, stats->textHeight, &m_screen.m_vector[0], stats->textWidth * sizeof(CharacterCell));
 
