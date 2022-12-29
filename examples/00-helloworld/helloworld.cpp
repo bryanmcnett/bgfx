@@ -22,6 +22,14 @@ class ExampleHelloWorld : public entry::AppI
 public:
 	ExampleHelloWorld(const char* _name, const char* _description, const char* _url)
 		: entry::AppI(_name, _description, _url)
+		, m_binding()
+		, m_brush{}
+		, m_debug{}
+		, m_height{}
+		, m_mode{}
+		, m_reset{}
+		, m_x{}
+		, m_y{}
 	{
 	}
 
@@ -60,16 +68,23 @@ public:
 		m_brush = CharacterCell{ 'a', 0xF, 0x0 };
 		m_binding[0].set(entry::Key::LeftBracket, entry::Modifier::None, 1, LeftBracket, this);
 		m_binding[1].set(entry::Key::RightBracket, entry::Modifier::None, 1, RightBracket, this);
-		m_binding[2].set(entry::Key::Comma, entry::Modifier::None, 1, Comma, this);
-		m_binding[3].set(entry::Key::KeyO, entry::Modifier::LeftCtrl, 1, KeyCtrlO, this);
-		m_binding[4].set(entry::Key::KeyO, entry::Modifier::RightCtrl, 1, KeyCtrlO, this);
-		m_binding[5].set(entry::Key::KeyS, entry::Modifier::LeftCtrl, 1, KeyCtrlS, this);
-		m_binding[6].set(entry::Key::KeyS, entry::Modifier::RightCtrl, 1, KeyCtrlS, this);
-		m_binding[7].end();
+		m_binding[2].set(entry::Key::LeftBracket, entry::Modifier::LeftShift, 1, ShiftLeftBracket, this);
+		m_binding[3].set(entry::Key::LeftBracket, entry::Modifier::RightShift, 1, ShiftLeftBracket, this);
+		m_binding[4].set(entry::Key::RightBracket, entry::Modifier::LeftShift, 1, ShiftRightBracket, this);
+		m_binding[5].set(entry::Key::RightBracket, entry::Modifier::RightShift, 1, ShiftRightBracket, this);
+		m_binding[6].set(entry::Key::Comma, entry::Modifier::None, 1, Comma, this);
+		m_binding[7].set(entry::Key::KeyO, entry::Modifier::LeftCtrl, 1, KeyCtrlO, this);
+		m_binding[8].set(entry::Key::KeyO, entry::Modifier::RightCtrl, 1, KeyCtrlO, this);
+		m_binding[9].set(entry::Key::KeyS, entry::Modifier::LeftCtrl, 1, KeyCtrlS, this);
+		m_binding[10].set(entry::Key::KeyS, entry::Modifier::RightCtrl, 1, KeyCtrlS, this);
+		m_binding[11].set(entry::Key::KeyF, entry::Modifier::None, 1, KeyF, this);
+		m_binding[12].set(entry::Key::KeyB, entry::Modifier::None, 1, KeyB, this);
+		m_binding[13].set(entry::Key::KeyA, entry::Modifier::None, 1, KeyA, this);
+		m_binding[14].end();
 		inputAddBindings("Application", m_binding);
 	}
 
-	InputBinding m_binding[8];
+	InputBinding m_binding[15];
 
 	virtual int shutdown() override
 	{
@@ -126,20 +141,82 @@ public:
 	int m_y;
 	CharacterCell m_brush;
 
+	static void ShiftLeftBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftLeftBracket(); }
+	static void ShiftRightBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftRightBracket(); }
 	static void LeftBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->LeftBracket(); }
 	static void RightBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->RightBracket(); }
 	static void Comma(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Comma(); }
 	static void KeyCtrlO(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyCtrlO(); }
 	static void KeyCtrlS(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyCtrlS(); }
+	static void KeyF(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyF(); }
+	static void KeyB(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyB(); }
+	static void KeyA(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyA(); }
+
+	enum Mode
+	{
+		kForeground,
+		kBackground,
+		kAscii,
+	};
+	Mode m_mode;
+
+	void KeyF()
+	{
+		m_mode = kForeground;
+	}
+
+	void KeyB()
+	{
+		m_mode = kBackground;
+	}
+
+	void KeyA()
+	{
+		m_mode = kAscii;
+	}
 
 	void LeftBracket() 
 	{
-		m_brush.m_foreground = m_brush.m_foreground + 1;
+		switch(m_mode)
+		{
+		case kForeground: m_brush.m_foreground = m_brush.m_foreground - 1; break;
+		case kBackground: m_brush.m_background = m_brush.m_background - 1; break;
+		case kAscii:      m_brush.m_character = m_brush.m_character - 1; break;
+		default: break;
+		}
+	}
+
+	void ShiftLeftBracket()
+	{
+		switch (m_mode)
+		{
+		case kForeground: m_brush.m_foreground = m_brush.m_foreground - 4; break;
+		case kBackground: m_brush.m_background = m_brush.m_background - 4; break;
+		case kAscii:      m_brush.m_character = m_brush.m_character - 16; break;
+		default: break;
+		}
 	}
 
 	void RightBracket()
 	{
-		m_brush.m_foreground = m_brush.m_foreground - 1;
+		switch (m_mode)
+		{
+		case kForeground: m_brush.m_foreground = m_brush.m_foreground + 1; break;
+		case kBackground: m_brush.m_background = m_brush.m_background + 1; break;
+		case kAscii:      m_brush.m_character = m_brush.m_character + 1; break;
+		default: break;
+		}
+	}
+
+	void ShiftRightBracket()
+	{
+		switch (m_mode)
+		{
+		case kForeground: m_brush.m_foreground = m_brush.m_foreground + 4; break;
+		case kBackground: m_brush.m_background = m_brush.m_background + 4; break;
+		case kAscii:      m_brush.m_character = m_brush.m_character + 16; break;
+		default: break;
+		}
 	}
 
 	void Comma()
