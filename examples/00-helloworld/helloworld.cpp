@@ -23,9 +23,9 @@ public:
 	ExampleHelloWorld(const char* _name, const char* _description, const char* _url)
 		: entry::AppI(_name, _description, _url)
 		, m_binding()
-		, m_pencil{}
 		, m_debug{}
 		, m_height{}
+		, m_foreground{}
 		, m_mode{}
 		, m_reset{}
 		, m_x{}
@@ -65,7 +65,7 @@ public:
 
 		imguiCreate();
 
-		m_pencil = CharacterCell{ 'a', 0xF, 0x0 };
+		m_foreground = CharacterCell{ 'a', 0xF, 0x0 };
 		m_binding[0].set(entry::Key::LeftBracket, entry::Modifier::None, 1, LeftBracket, this);
 		m_binding[1].set(entry::Key::RightBracket, entry::Modifier::None, 1, RightBracket, this);
 		m_binding[2].set(entry::Key::LeftBracket, entry::Modifier::LeftShift, 1, ShiftLeftBracket, this);
@@ -82,11 +82,13 @@ public:
 		m_binding[13].set(entry::Key::KeyC, entry::Modifier::None, 1, KeyC, this);
 		m_binding[14].set(entry::Key::KeyB, entry::Modifier::None, 1, KeyB, this);
 		m_binding[15].set(entry::Key::KeyP, entry::Modifier::None, 1, KeyP, this);
-		m_binding[16].end();
+		m_binding[16].set(entry::Key::F1, entry::Modifier::None, 1, F1, this);
+		m_binding[17].set(entry::Key::F2, entry::Modifier::None, 1, F2, this);
+		m_binding[18].end();
 		inputAddBindings("Application", m_binding);
 	}
 
-	InputBinding m_binding[17];
+	InputBinding m_binding[19];
 
 	virtual int shutdown() override
 	{
@@ -103,20 +105,34 @@ public:
 		uint8_t m_character;
 		uint8_t m_foreground:4;
 		uint8_t m_background:4;
+		friend bool operator==(const CharacterCell& a, const CharacterCell& b) 
+		{
+			if (a.m_character != b.m_character)
+				return false;
+			if (a.m_foreground != b.m_foreground)
+				return false;
+			if (a.m_background != b.m_background)
+				return false;
+			return true;
+		}
+		friend bool operator!=(const CharacterCell& a, const CharacterCell& b)
+		{
+			return !(a == b);
+		}
 	};
-	struct Map
+	template <typename T> struct MapOf
 	{
 		int m_width;
 		int m_height;
-		std::vector<CharacterCell> m_vector;
-		Map()
+		std::vector<T> m_vector;
+		MapOf()
 		: m_width(0)
 		, m_height(0)
 		{
 		}
 		void resize(int width, int height)
 		{
-			std::vector<CharacterCell> temp = m_vector;
+			std::vector<T> temp = m_vector;
 			m_vector.resize(width * height);
 			std::fill(m_vector.begin(), m_vector.end(), CharacterCell{ 0x00, 0x0, 0x0 });
 			for (int y = 0; y < std::min(height, m_height); ++y)
@@ -125,27 +141,29 @@ public:
 			m_width = width;
 			m_height = height;
 		}
-		CharacterCell& operator()(int x, int y)
+		T& operator()(int x, int y)
 		{
 			assert(x >= 0 && x < m_width);
 			assert(y >= 0 && y < m_height);
 			return m_vector[y * m_width + x];
 		}
-		const CharacterCell& operator()(int x, int y) const
+		const T& operator()(int x, int y) const
 		{
 			assert(x >= 0 && x < m_width);
 			assert(y >= 0 && y < m_height);
 			return m_vector[y * m_width + x];
 		}
 	};
+	typedef MapOf<CharacterCell> Map;
 	Map m_map = {};
 	Map m_screen = {};
 	int m_x = 0;
 	int m_y = 0;
 	int m_brushx = 0;
 	int m_brushy = 0;
-	CharacterCell m_pencil = {};
+	CharacterCell m_foreground = {};
 	Map m_brush = {};
+	CharacterCell m_brushColor = {};
 
 	static void ShiftLeftBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftLeftBracket(); }
 	static void ShiftRightBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftRightBracket(); }
@@ -159,6 +177,8 @@ public:
 	static void KeyC(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyC(); }
 	static void KeyB(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyB(); }
 	static void KeyP(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyP(); }
+	static void F1(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->F1(); }
+	static void F2(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->F2(); }
 
 	enum Tool
 	{
@@ -174,6 +194,16 @@ public:
 		kAscii,
 	};
 	Mode m_mode = kForeground;
+
+	void F1()
+	{
+		m_blitMode = kMatte;
+	}
+
+	void F2()
+	{
+		m_blitMode = kColor;
+	}
 
 	void KeyZ()
 	{
@@ -195,7 +225,6 @@ public:
 		m_tool = kGrabBrush;
 		m_oldX = m_x;
 		m_oldY = m_y;
-		m_grabbing = false;
 	}
 
 	void KeyP()
@@ -207,9 +236,9 @@ public:
 	{
 		switch(m_mode)
 		{
-		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground - 1; break;
-		case kBackground: m_pencil.m_background = m_pencil.m_background - 1; break;
-		case kAscii:      m_pencil.m_character = m_pencil.m_character - 1; break;
+		case kForeground: m_foreground.m_foreground = m_foreground.m_foreground - 1; break;
+		case kBackground: m_foreground.m_background = m_foreground.m_background - 1; break;
+		case kAscii:      m_foreground.m_character = m_foreground.m_character - 1; break;
 		default: break;
 		}
 	}
@@ -218,9 +247,9 @@ public:
 	{
 		switch (m_mode)
 		{
-		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground - 4; break;
-		case kBackground: m_pencil.m_background = m_pencil.m_background - 4; break;
-		case kAscii:      m_pencil.m_character = m_pencil.m_character - 16; break;
+		case kForeground: m_foreground.m_foreground = m_foreground.m_foreground - 4; break;
+		case kBackground: m_foreground.m_background = m_foreground.m_background - 4; break;
+		case kAscii:      m_foreground.m_character = m_foreground.m_character - 16; break;
 		default: break;
 		}
 	}
@@ -229,9 +258,9 @@ public:
 	{
 		switch (m_mode)
 		{
-		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground + 1; break;
-		case kBackground: m_pencil.m_background = m_pencil.m_background + 1; break;
-		case kAscii:      m_pencil.m_character = m_pencil.m_character + 1; break;
+		case kForeground: m_foreground.m_foreground = m_foreground.m_foreground + 1; break;
+		case kBackground: m_foreground.m_background = m_foreground.m_background + 1; break;
+		case kAscii:      m_foreground.m_character = m_foreground.m_character + 1; break;
 		default: break;
 		}
 	}
@@ -240,16 +269,24 @@ public:
 	{
 		switch (m_mode)
 		{
-		case kForeground: m_pencil.m_foreground = m_pencil.m_foreground + 4; break;
-		case kBackground: m_pencil.m_background = m_pencil.m_background + 4; break;
-		case kAscii:      m_pencil.m_character = m_pencil.m_character + 16; break;
+		case kForeground: m_foreground.m_foreground = m_foreground.m_foreground + 4; break;
+		case kBackground: m_foreground.m_background = m_foreground.m_background + 4; break;
+		case kAscii:      m_foreground.m_character = m_foreground.m_character + 16; break;
 		default: break;
 		}
 	}
 
+	static void grab(Map& dest, Map& src, int x, int y, int width, int height)
+	{
+		dest.resize(width, height);
+		for (int dy = 0; dy < height; ++dy)
+			for (int dx = 0; dx < width; ++dx)
+				dest(dx, dy) = src(x + dx, y + dy);
+	}
+
 	void Comma()
 	{
-		m_pencil = m_map(m_x, m_y);
+		m_foreground = m_map(m_x, m_y);
 		grab(m_brush, m_map, m_x, m_y, 1, 1);
 	}
 
@@ -326,7 +363,15 @@ public:
 		}
 	}
 
-	static void blit(Map& dest, Map& src, int dx, int dy)
+	enum BlitMode
+	{
+		kMatte,    // with a transparent color
+		kColor,    // as a solid color
+		kReplace,  // ?
+	};
+	BlitMode m_blitMode = kMatte;
+
+	void blit(Map& dest, Map& src, int dx, int dy, BlitMode blitMode)
 	{
 		int sx = 0;
 		int sy = 0;
@@ -343,8 +388,38 @@ public:
 		int w = std::max(0, std::min(src.m_width - sx, dest.m_width - dx));
 		int h = std::max(0, std::min(src.m_height - sy, dest.m_height - dy));
 		for (int y = 0; y < h; ++y)
-			for (int x = 0; x < w; ++x)
-				dest(dx + x, dy + y) = src(sx + x, sy + y);
+			switch (blitMode)
+			{
+			case kMatte:
+				for (int x = 0; x < w; ++x)
+				{
+					const CharacterCell cell = src(sx + x, sy + y);
+					if (cell != m_brushColor)
+						dest(dx + x, dy + y) = cell;
+				}
+				break;
+			case kColor:
+				for (int x = 0; x < w; ++x)
+				{
+					const CharacterCell cell = src(sx + x, sy + y);
+					if (cell != m_brushColor)
+						dest(dx + x, dy + y) = m_foreground;
+				}
+				break;
+			case kReplace:
+				for (int x = 0; x < w; ++x)
+				{
+					dest(dx + x, dy + y) = src(sx + x, sy + y);
+				}
+				break;
+			default:
+				break;
+			}
+	}
+
+	void blit(Map& dest, Map& src, int dx, int dy)
+	{
+		blit(dest, src, dx, dy, m_blitMode);
 	}
 
 	static void blit(Map& dest, CharacterCell& src, int dx, int dy)
@@ -369,14 +444,6 @@ public:
 		}
 	}
 
-	static void grab(Map& dest, Map& src, int x, int y, int width, int height)
-	{
-		dest.resize(width, height);
-		for (int dy = 0; dy < height; ++dy)
-			for (int dx = 0; dx < width; ++dx)
-				dest(dx, dy) = src(x + dx, y + dy);
-	}
-
 	bool m_grabbing = false;
 	int m_oldX, m_oldY;
 	void UpdateGrabBrush()
@@ -391,6 +458,14 @@ public:
 		{
 			if (!m_mouseState.m_buttons[entry::MouseButton::Left])
 			{
+				const auto corner0 = m_map(x1, y1);
+				const auto corner1 = m_map(x2, y1);
+				const auto corner2 = m_map(x1, y2);
+				const auto corner3 = m_map(x2, y2);
+				if (corner0 == corner1 && corner1 == corner2 && corner2 == corner3)
+					m_brushColor = corner0;
+				else
+					m_brushColor = m_foreground;
 				grab(m_brush, m_map, x1, y1, width, height);
 				m_brushx = width / 2;
 				m_brushy = height / 2;
@@ -449,7 +524,7 @@ public:
 			m_x = (m_mouseState.m_mx + (characterWideInPixels / 2)) / characterWideInPixels;
 			m_y = (m_mouseState.m_my + (characterTallInPixels / 2)) / characterTallInPixels;
 
-			blit(m_screen, m_map, 0, 0);
+			blit(m_screen, m_map, 0, 0, kReplace);
 			switch (m_tool)
 			{
 			case kPaint:
