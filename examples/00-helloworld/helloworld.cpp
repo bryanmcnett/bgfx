@@ -77,18 +77,24 @@ public:
 		m_binding[8].set(entry::Key::KeyO, entry::Modifier::RightCtrl, 1, KeyCtrlO, this);
 		m_binding[9].set(entry::Key::KeyS, entry::Modifier::LeftCtrl, 1, KeyCtrlS, this);
 		m_binding[10].set(entry::Key::KeyS, entry::Modifier::RightCtrl, 1, KeyCtrlS, this);
-		m_binding[11].set(entry::Key::KeyZ, entry::Modifier::None, 1, KeyZ, this);
-		m_binding[12].set(entry::Key::KeyX, entry::Modifier::None, 1, KeyX, this);
-		m_binding[13].set(entry::Key::KeyC, entry::Modifier::None, 1, KeyC, this);
+		m_binding[11].set(entry::Key::Key1, entry::Modifier::None, 1, Key1, this);
+		m_binding[12].set(entry::Key::Key2, entry::Modifier::None, 1, Key2, this);
+		m_binding[13].set(entry::Key::Key3, entry::Modifier::None, 1, Key3, this);
 		m_binding[14].set(entry::Key::KeyB, entry::Modifier::None, 1, KeyB, this);
 		m_binding[15].set(entry::Key::KeyP, entry::Modifier::None, 1, KeyP, this);
 		m_binding[16].set(entry::Key::F1, entry::Modifier::None, 1, F1, this);
 		m_binding[17].set(entry::Key::F2, entry::Modifier::None, 1, F2, this);
-		m_binding[18].end();
+		m_binding[18].set(entry::Key::KeyX, entry::Modifier::None,      1,      KeyX, this);
+		m_binding[19].set(entry::Key::KeyX, entry::Modifier::LeftShift, 1, ShiftKeyX, this);
+		m_binding[20].set(entry::Key::KeyY, entry::Modifier::None,      1,      KeyY, this);
+		m_binding[21].set(entry::Key::KeyY, entry::Modifier::LeftShift, 1, ShiftKeyY, this);
+		m_binding[22].set(entry::Key::KeyH, entry::Modifier::None,      1,      KeyH, this);
+		m_binding[23].set(entry::Key::KeyH, entry::Modifier::LeftShift, 1, ShiftKeyH, this);
+		m_binding[24].end();
 		inputAddBindings("Application", m_binding);
 	}
 
-	InputBinding m_binding[19];
+	InputBinding m_binding[25];
 
 	virtual int shutdown() override
 	{
@@ -130,6 +136,22 @@ public:
 		, m_height(0)
 		{
 		}
+		MapOf& operator=(const MapOf& other)
+		{
+			m_vector = other.m_vector;
+			m_width = other.m_width;
+			m_height = other.m_height;
+			return *this;
+		}
+		MapOf& operator=(MapOf&& other)
+		{
+			m_vector = std::move(other.m_vector);
+			m_width = other.m_width;
+			other.m_width = 0;
+			m_height = other.m_height;
+			other.m_height = 0;
+			return *this;
+		}
 		void resize(int width, int height)
 		{
 			std::vector<T> temp = m_vector;
@@ -162,7 +184,9 @@ public:
 	int m_brushx = 0;
 	int m_brushy = 0;
 	CharacterCell m_foreground = {};
+	Map m_oldbrush = {};
 	Map m_brush = {};
+	Map m_unscaledBrush = {};
 	CharacterCell m_brushColor = {};
 
 	static void ShiftLeftBracket(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftLeftBracket(); }
@@ -172,13 +196,20 @@ public:
 	static void Comma(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Comma(); }
 	static void KeyCtrlO(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyCtrlO(); }
 	static void KeyCtrlS(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyCtrlS(); }
-	static void KeyZ(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyZ(); }
-	static void KeyX(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyX(); }
-	static void KeyC(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyC(); }
+	static void Key1(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Key1(); }
+	static void Key2(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Key2(); }
+	static void Key3(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Key3(); }
 	static void KeyB(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyB(); }
 	static void KeyP(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyP(); }
 	static void F1(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->F1(); }
 	static void F2(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->F2(); }
+
+	static void KeyH(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyH(); }
+	static void ShiftKeyH(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftKeyH(); }
+	static void KeyX(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyX(); }
+	static void ShiftKeyX(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftKeyX(); }
+	static void KeyY(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyY(); }
+	static void ShiftKeyY(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftKeyY(); }
 
 	enum Tool
 	{
@@ -205,17 +236,17 @@ public:
 		m_blitMode = kColor;
 	}
 
-	void KeyZ()
+	void Key1()
 	{
 		m_mode = kForeground;
 	}
 
-	void KeyX()
+	void Key2()
 	{
 		m_mode = kBackground;
 	}
 
-	void KeyC()
+	void Key3()
 	{
 		m_mode = kAscii;
 	}
@@ -230,6 +261,31 @@ public:
 	void KeyP()
 	{
 		m_tool = kPaint;
+	}
+
+	void KeyH()
+	{
+		Halve();
+	}
+	void ShiftKeyH()
+	{
+		Double();
+	}
+	void KeyX()
+	{
+		FlipHorizontal();
+	}
+	void ShiftKeyX()
+	{
+		DoubleHorizontal();
+	}
+	void KeyY()
+	{
+		FlipVertical();
+	}
+	void ShiftKeyY()
+	{
+		DoubleVertical();
 	}
 
 	void LeftBracket() 
@@ -371,6 +427,65 @@ public:
 	};
 	BlitMode m_blitMode = kMatte;
 
+	void FlipHorizontal()
+	{
+		for(int y = 0; y < m_unscaledBrush.m_height; ++y)
+			for (int x = 0; x < m_unscaledBrush.m_width / 2; ++x)
+				std::swap(m_unscaledBrush(x,y), m_unscaledBrush(m_unscaledBrush.m_width - 1 - x, y));
+		RescaleBrush();
+	}
+
+	void FlipVertical()
+	{
+		for (int y = 0; y < m_unscaledBrush.m_height / 2; ++y)
+			for (int x = 0; x < m_unscaledBrush.m_width; ++x)
+				std::swap(m_unscaledBrush(x, y), m_unscaledBrush(x, m_unscaledBrush.m_height - 1 - y));
+		RescaleBrush();
+	}
+
+	void RescaleBrush()
+	{
+		const int dsxddx = (m_unscaledBrush.m_width << 16) / m_brush.m_width;
+		const int dsyddy = (m_unscaledBrush.m_height << 16) / m_brush.m_height;
+		int sy = 0;
+		for (int dy = 0; dy < m_brush.m_height; ++dy)
+		{
+			int sx = 0;
+			for (int dx = 0; dx < m_brush.m_width; ++dx)
+			{
+				const auto isx = sx >> 16;
+				const auto isy = sy >> 16;
+				m_brush(dx, dy) = m_unscaledBrush(isx, isy);
+				sx += dsxddx;
+			}
+			sy += dsyddy;
+		}
+	}
+
+	void Halve()
+	{
+		m_brush.resize(m_brush.m_width / 2, m_brush.m_height / 2);
+		RescaleBrush();
+	}
+
+	void Double()
+	{
+		m_brush.resize(m_brush.m_width * 2, m_brush.m_height * 2);
+		RescaleBrush();
+	}
+
+	void DoubleHorizontal()
+	{
+		m_brush.resize(m_brush.m_width * 2, m_brush.m_height);
+		RescaleBrush();
+	}
+
+	void DoubleVertical()
+	{
+		m_brush.resize(m_brush.m_width, m_brush.m_height * 2);
+		RescaleBrush();
+	}
+
 	void blit(Map& dest, Map& src, int dx, int dy, BlitMode blitMode)
 	{
 		int sx = 0;
@@ -466,7 +581,8 @@ public:
 					m_brushColor = corner0;
 				else
 					m_brushColor = m_foreground;
-				grab(m_brush, m_map, x1, y1, width, height);
+				grab(m_unscaledBrush, m_map, x1, y1, width, height);
+				m_brush = m_unscaledBrush;
 				m_brushx = width / 2;
 				m_brushy = height / 2;
 				m_grabbing = false;
