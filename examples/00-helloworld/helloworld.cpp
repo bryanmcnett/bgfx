@@ -90,11 +90,13 @@ public:
 		m_binding[21].set(entry::Key::KeyY, entry::Modifier::LeftShift, 1, ShiftKeyY, this);
 		m_binding[22].set(entry::Key::KeyH, entry::Modifier::None,      1,      KeyH, this);
 		m_binding[23].set(entry::Key::KeyH, entry::Modifier::LeftShift, 1, ShiftKeyH, this);
-		m_binding[24].end();
+		m_binding[24].set(entry::Key::Minus, entry::Modifier::None, 1, Minus, this);
+		m_binding[25].set(entry::Key::Plus, entry::Modifier::None, 1, Plus, this);
+		m_binding[26].end();
 		inputAddBindings("Application", m_binding);
 	}
 
-	InputBinding m_binding[25];
+	InputBinding m_binding[27];
 
 	virtual int shutdown() override
 	{
@@ -211,6 +213,9 @@ public:
 	static void KeyY(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->KeyY(); }
 	static void ShiftKeyY(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->ShiftKeyY(); }
 
+	static void Minus(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Minus(); }
+	static void Plus(const void* userData) { return static_cast<ExampleHelloWorld*>(const_cast<void*>(userData))->Plus(); }
+
 	enum Tool
 	{
 		kPaint,
@@ -263,13 +268,36 @@ public:
 		m_tool = kPaint;
 	}
 
+	void Minus()
+	{
+		const int w1 = m_brush.m_width - 1;
+		const int h1 = m_unscaledBrush.m_height * w1 / m_unscaledBrush.m_width;
+		const int h2 = m_brush.m_height - 1;
+		const int w2 = m_unscaledBrush.m_width * h2 / m_unscaledBrush.m_height;
+		if(w2*h2 > w1*h1)
+			AdjustBrushSize(w2, h2);
+		else
+			AdjustBrushSize(w1, h1);
+	}
+	void Plus()
+	{
+		const int w1 = m_brush.m_width + 1;
+		const int h1 = m_unscaledBrush.m_height * w1 / m_unscaledBrush.m_width;
+		const int h2 = m_brush.m_height + 1;
+		const int w2 = m_unscaledBrush.m_width * h2 / m_unscaledBrush.m_height;
+		if (w2 * h2 < w1 * h1)
+			AdjustBrushSize(w2, h2);
+		else
+			AdjustBrushSize(w1, h1);
+	}
+
 	void KeyH()
 	{
-		Halve();
+		AdjustBrushSize(m_brush.m_width / 2, m_brush.m_height / 2);
 	}
 	void ShiftKeyH()
 	{
-		Double();
+		AdjustBrushSize(m_brush.m_width * 2, m_brush.m_height * 2);
 	}
 	void KeyX()
 	{
@@ -277,7 +305,7 @@ public:
 	}
 	void ShiftKeyX()
 	{
-		DoubleHorizontal();
+		AdjustBrushSize(m_brush.m_width * 2, m_brush.m_height);
 	}
 	void KeyY()
 	{
@@ -285,7 +313,7 @@ public:
 	}
 	void ShiftKeyY()
 	{
-		DoubleVertical();
+		AdjustBrushSize(m_brush.m_width, m_brush.m_height * 2);
 	}
 
 	void LeftBracket() 
@@ -462,27 +490,9 @@ public:
 		}
 	}
 
-	void Halve()
+	void AdjustBrushSize(int width, int height)
 	{
-		m_brush.resize(m_brush.m_width / 2, m_brush.m_height / 2);
-		RescaleBrush();
-	}
-
-	void Double()
-	{
-		m_brush.resize(m_brush.m_width * 2, m_brush.m_height * 2);
-		RescaleBrush();
-	}
-
-	void DoubleHorizontal()
-	{
-		m_brush.resize(m_brush.m_width * 2, m_brush.m_height);
-		RescaleBrush();
-	}
-
-	void DoubleVertical()
-	{
-		m_brush.resize(m_brush.m_width, m_brush.m_height * 2);
+		m_brush.resize(width, height);
 		RescaleBrush();
 	}
 
